@@ -1,0 +1,77 @@
+#!/bin/bash
+
+CONFIG=builder.conf; [ -f $CONFIG ] && source $CONFIG
+
+# Default values
+PRESENTATION=${PRESENTATION:-index.adoc}
+PRESENTATION_DIRS=${PRESENTATION_DIRS:-"reveal.js images"}
+DEFAULT_OP=${DEFAULT_OP:-html}
+
+# Non configurable
+FILENAME=${PRESENTATION%.*}
+
+gem_install_asciidoctor_and_dependencies() {
+    local gems='asciidoctor tilt thread_safe slim'
+
+    local gem
+    for gem in $gems
+    do
+        gem list $gem |
+        if ! grep -q "$gem "
+        then
+            gem install $gem
+        fi
+    done
+}
+
+projects_cloned() {
+    [ -d asciidoctor-reveal.js/.git ] &&
+    [ -d reveal.js/.git ]
+}
+
+git_clone_projects() {
+    git clone https://github.com/asciidoctor/asciidoctor-reveal.js
+    git clone -b 3.0.0 https://github.com/hakimel/reveal.js
+}
+
+_prepare() {
+    gem_install_asciidoctor_and_dependencies
+    git_clone_projects
+}
+
+_html() {
+    `which asciidoctor &> /dev/null` || gem_install_asciidoctor_and_dependencies
+    projects_cloned || git_clone_projects
+    asciidoctor -T asciidoctor-reveal.js/templates/slim ${PRESENTATION}
+}
+
+_dist() {
+    local zip_dir=`basename $PWD`
+    local zip_dirs
+    
+    local d
+    for d in $PRESENTATION_DIRS
+    do
+        zip_dirs="$zip_dir/$d $zip_dirs"
+    done
+
+    cd ..
+    zip -r $zip_dir.zip $zip_dir/${FILENAME}.html $zip_dirs
+    cd -> /dev/null
+}
+
+_clean() {
+    rm -rf ${FILENAME}.html
+}
+
+_clean_all() {
+    _clean
+    rm -rf asciidoctor-reveal.js reveal.js
+}
+
+op=_$1
+[ "$op" = "_" ] && op=_$DEFAULT_OP
+
+shift
+
+$op "$@"
