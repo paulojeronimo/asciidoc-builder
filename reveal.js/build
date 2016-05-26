@@ -1,15 +1,17 @@
 #!/bin/bash
 
-CONFIG=builder.conf; [ -f $CONFIG ] && source $CONFIG
+# Put this config file at same directory level that your slides
+CONFIG_FILE=builder.conf; [ -f $CONFIG_FILE ] && source $CONFIG_FILE
 
-# Default values
-PRESENTATION=${PRESENTATION:-index.adoc}
-PRESENTATION_DIRS=${PRESENTATION_DIRS:-"reveal.js images"}
+# Default values (configurable in builder.conf, for example)
+RESOURCES=${RESOURCES:-"reveal.js images"}
 DEFAULT_OP=${DEFAULT_OP:-html}
 
-# Non configurable
-FILENAME=${PRESENTATION%.*}
+####################
+# Auxiliar functions
+####################
 
+# Install Asciidoctor and necessary dependencies
 gem_install_asciidoctor_and_dependencies() {
     local gems='asciidoctor tilt thread_safe slim'
 
@@ -24,54 +26,92 @@ gem_install_asciidoctor_and_dependencies() {
     done
 }
 
+# Verify if necessary projects are cloned
 projects_cloned() {
     [ -d asciidoctor-reveal.js/.git ] &&
     [ -d reveal.js/.git ]
 }
 
+# Clone the necessary projects
 git_clone_projects() {
     git clone https://github.com/asciidoctor/asciidoctor-reveal.js
     git clone -b 3.0.0 https://github.com/hakimel/reveal.js
 }
 
+# Main function
+main() {
+    local op=$1
+
+    [ "$op" ] || op=$DEFAULT_OP
+    while [ "$op" ]
+    do
+        shift
+        if ! type _$op &> /dev/null
+        then
+            echo "Target \"$op\" does'nt exists!"
+        else
+            _$op "$@"
+        fi
+        op=$1
+    done
+}
+
+#########
+# Targets
+#########
+
+# Prepare the environment to build presentations
 _prepare() {
     gem_install_asciidoctor_and_dependencies
     git_clone_projects
 }
 
+# Build HTML. Verify if asciidoctor and dependencies are installed. If not, install it.
 _html() {
     `which asciidoctor &> /dev/null` || gem_install_asciidoctor_and_dependencies
     projects_cloned || git_clone_projects
-    asciidoctor -T asciidoctor-reveal.js/templates/slim ${PRESENTATION}
+
+    local adoc
+    for adoc in `find . -maxdepth 1 -type f -name '*.adoc'`
+    do
+        adoc=`basename $adoc`
+        local html=${adoc%.*}
+        if [ $adoc -nt $html ]
+        then
+            asciidoctor -T asciidoctor-reveal.js/templates/slim $adoc
+        fi
+    done
 }
 
+# Create a zip with all necessary resources to distribute 
 _dist() {
     local zip_dir=`basename $PWD`
-    local zip_dirs
+    local zip_resources
     
-    local d
-    for d in $PRESENTATION_DIRS
+    local res
+    for res in $RESOURCES
     do
-        zip_dirs="$zip_dir/$d $zip_dirs"
+        zip_resources="$zip_dir/$res $zip_resources"
     done
 
     cd ..
-    zip -r $zip_dir.zip $zip_dir/${FILENAME}.html $zip_dirs
+    zip -r $zip_dir.zip $zip_dir/*.html $zip_resources
     cd -> /dev/null
 }
 
+# Remove HTML.
 _clean() {
-    rm -rf ${FILENAME}.html
+    rm -f *.html
 }
 
+# Remove HTML and downloaded files.
 _clean_all() {
     _clean
     rm -rf asciidoctor-reveal.js reveal.js
 }
 
-op=_$1
-[ "$op" = "_" ] && op=_$DEFAULT_OP
+#############
+# Start point
+#############
 
-shift
-
-$op "$@"
+main "$@"
