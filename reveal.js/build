@@ -6,6 +6,8 @@ CONFIG_FILE=builder.conf; [ -f $CONFIG_FILE ] && source $CONFIG_FILE
 # Default values (configurable in builder.conf, for example)
 RESOURCES=${RESOURCES:-"reveal.js images"}
 DEFAULT_OP=${DEFAULT_OP:-html}
+NEEDED_GEMS=${NEEDED_GEMS:-'asciidoctor tilt thread_safe slim'}
+BUILDER_PREPARED=${BUILDER_PREPARED:-'builder.prepared'}
 
 ####################
 # Auxiliar functions
@@ -13,29 +15,38 @@ DEFAULT_OP=${DEFAULT_OP:-html}
 
 # Install Asciidoctor and necessary dependencies
 gem_install_asciidoctor_and_dependencies() {
-    local gems='asciidoctor tilt thread_safe slim'
-
     local gem
-    for gem in $gems
+    for gem in $NEEDED_GEMS
     do
         gem list $gem |
         if ! grep -q "$gem "
         then
-            gem install $gem
+            if ! gem install $gem
+            then
+                echo "gem install $gem fails :("
+                case "$OSTYPE" in
+                    darwin*)
+                        echo "trying to install with sudo ..."
+                        # http://stackoverflow.com/a/32892222
+                        sudo gem install -n /usr/local/bin $gem
+                        ;;
+                esac
+            fi
         fi
     done
 }
 
-# Verify if necessary projects are cloned
-projects_cloned() {
-    [ -d asciidoctor-reveal.js/.git ] &&
-    [ -d reveal.js/.git ]
-}
-
 # Clone the necessary projects
 git_clone_projects() {
-    git clone https://github.com/asciidoctor/asciidoctor-reveal.js
-    git clone -b 3.0.0 https://github.com/hakimel/reveal.js
+    if ! [ -d asciidoctor-reveal.js/.git ]
+    then
+        git clone https://github.com/asciidoctor/asciidoctor-reveal.js
+    fi
+
+    if ! [ -d reveal.js/.git ]
+    then
+        git clone -b 3.0.0 https://github.com/hakimel/reveal.js
+    fi
 }
 
 # Main function
@@ -64,13 +75,12 @@ main() {
 _prepare() {
     gem_install_asciidoctor_and_dependencies
     git_clone_projects
+    touch "$BUILDER_PREPARED"
 }
 
 # Build HTML. Verify if asciidoctor and dependencies are installed. If not, install it.
 _html() {
-    `which asciidoctor &> /dev/null` || gem_install_asciidoctor_and_dependencies
-    projects_cloned || git_clone_projects
-
+    [ -f "$BUILDER_PREPARED" ] || _prepare
     local adoc
     for adoc in `find . -maxdepth 1 -type f -name '*.adoc'`
     do
@@ -107,7 +117,7 @@ _clean() {
 # Remove HTML and downloaded files.
 _clean_all() {
     _clean
-    rm -rf asciidoctor-reveal.js reveal.js
+    rm -rf asciidoctor-reveal.js reveal.js "$BUILDER_PREPARED"
 }
 
 #############
