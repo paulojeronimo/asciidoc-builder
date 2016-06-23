@@ -1,0 +1,176 @@
+#!/bin/bash
+set +x
+
+BASEDIR=${BASEDIR:-`cd "$(dirname "$0")"; pwd`}
+BUILDER_DIR=`dirname $BASEDIR`
+BUILDER=`basename $BUILDER_DIR`
+PROJECT_DIR=`dirname $BUILDER_DIR`
+
+# Config file, relative to $PROJECT_DIR
+CONFIG_FILE=${CONFIG_FILE:-$BUILDER.conf}
+
+# Change to $PROJECT_DIR and read $CONFIG_FILE
+cd "$PROJECT_DIR"
+[ -f "$CONFIG_FILE" ] && source "$CONFIG_FILE"
+
+# Default values (configurable in $BUILDER.conf, for example)
+BUILD_DIR=${BUILD_DIR:-target}
+DEFAULT_OP=${DEFAULT_OP:-pdf}
+NEEDED_GEMS=${NEEDED_GEMS:-'asciidoctor tilt thread_safe slim'}
+BUILDER_PREPARED=${BUILDER_PREPARED:-"$BUILDER.prepared"}
+
+####################
+# Auxiliar functions
+####################
+
+adoc_files() {
+    if [ "$ADOC_FILES" ]
+    then
+        echo $ADOC_FILES
+    else
+        find . -type f -name '*.adoc'
+    fi
+}
+
+# Install Asciidoctor and necessary dependencies
+gem_install_asciidoctor_and_dependencies() {
+    local gem
+    for gem in $NEEDED_GEMS
+    do
+        gem list $gem |
+        if ! grep -q "$gem "
+        then
+            if ! gem install $gem
+            then
+                echo "gem install $gem fails :("
+                case "$OSTYPE" in
+                    darwin*)
+                        echo "trying to install with sudo ..."
+                        # http://stackoverflow.com/a/32892222
+                        sudo gem install -n /usr/local/bin $gem
+                        ;;
+                esac
+            fi
+        fi
+    done
+}
+
+# Main function
+main() {
+    local op=$1
+
+    [ "$op" ] || op=$DEFAULT_OP
+    while [ "$op" ]
+    do
+        shift
+        if ! [[ $op == --* ]]
+        then
+            if ! type _$op &> /dev/null
+            then
+                echo "Target \"$op\" does'nt exists!"
+            else
+                _$op "$@"
+            fi
+        fi
+        op=$1
+    done
+}
+
+#########
+# Targets
+#########
+
+# Prepare the environment to build presentations
+_prepare() {
+    gem_install_asciidoctor_and_dependencies
+    touch "$BUILDER_PREPARED"
+}
+
+# Build HTML. Verify if necessary gems and dependencies are installed. If not, install it.
+_html() {
+    echo "Generating HTML ..."
+
+    [ -f "$BUILDER_PREPARED" ] || _prepare
+
+    local adoc
+    local html
+    local destination_dir
+    adoc_files | while read adoc
+    do
+        html=${adoc/adoc/html}
+        destination_dir=$PROJECT_DIR/$BUILD_DIR/`dirname "$html"`
+
+        [ ! -f "$html" ] && asciidoctor -D "$destination_dir" "$adoc"
+        [ uris.conf -nt "$adoc" ] && touch "$adoc"
+        [ "$adoc" -nt "$html" ] && asciidoctor -D "$destination_dir" "$adoc" || true
+    done
+}
+
+# Build PDF. Verify if necessary gems and dependencies are installed. If not, install it.
+_pdf() {
+    echo "Generating PDF ..."
+
+    local use_fopub=false
+    while [ "$1" ]
+    do
+        case "$1" in
+            --with-fopub)
+                use_fopub=true
+                echo "Using fopub!"
+                ;;
+            *)
+                break
+                ;;
+        esac
+        shift
+    done
+
+    [ -f "$BUILDER_PREPARED" ] || _prepare
+
+    local adoc
+    local pdf 
+    local destination_dir
+    adoc_files | while read adoc
+    do
+        pdf=${adoc/adoc/pdf}
+        destination_dir=$PROJECT_DIR/$BUILD_DIR/`dirname "$pdf"`
+
+        if ! $use_fopub
+        then
+            [ ! -f "$pdf" ] && asciidoctor-pdf -D "$destination_dir" "$adoc"
+            [ uris.conf -nt "$adoc" ] && touch "$adoc"
+            [ "$adoc" -nt "$pdf" ] && asciidoctor-pdf -D "$destination_dir" "$adoc" || true
+        else
+            xml=${adoc/adoc/xml}
+            destination_dir=$destination_dir/fopub
+
+            asciidoctor -b docbook -d book -a data-uri! -o "$destination_dir"/"$xml" "$adoc"
+            fopub="$ASCIIDOCTOR_PROJECTS_DIR"/asciidoctor-fopub/fopub
+            case "$OSTYPE" in
+                cygwin)
+                    fopub=$fopub.bat
+                    destination_dir=`cygpath -w "$destination_dir"`
+                    chmod +x $fopub
+                    ;;
+            esac
+            $fopub "$destination_dir"/"$xml"
+        fi
+    done
+}
+
+# Remove $BUILD_DIR.
+_clean() {
+    rm -rf "$BUILD_DIR"
+}
+
+# Remove $BUILD_DIR and generated files.
+_clean_all() {
+    _clean
+    rm -rf "$BUILDER_PREPARED"
+}
+
+#############
+# Start point
+#############
+
+main "$@"
