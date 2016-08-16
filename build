@@ -76,6 +76,40 @@ main() {
     done
 }
 
+install_asciidoc() {
+  case $OSTYPE in
+    darwin*) brew install asciidoc;;
+    *) echo 'Por favor, instale o asciidoc!'; exit;;
+  esac
+}
+
+install_qrencode() {
+  case $OSTYPE in
+    darwin*) brew install qrencode;;
+    *) echo 'Por favor, instale o qrencode!'; exit;;
+  esac
+}
+
+prepare_dzslides() {
+  which asciidoc > /dev/null || install_asciidoc
+  which qrencode > /dev/null || install_qrencode
+  pushd . &> /dev/null
+  mkdir -p ~/.asciidoc && cd $_
+  local f=qrcode-filter-1.0.zip
+  if ! [ -f $f ]
+  then
+      wget -c http://asciidoc-qrencode-filter.googlecode.com/files/$f
+      asciidoc --filter install $f
+  fi
+  mkdir -p ~/.asciidoc/backends && cd $_
+  if ! [ -d dzslides ]
+  then
+      git clone $DZSLIDES_BACKEND dzslides && cd $_
+      git clone $DZSLIDES
+  fi
+  popd &> /dev/null
+}
+
 #########
 # Targets
 #########
@@ -167,6 +201,41 @@ _clean() {
 _clean_all() {
     _clean
     rm -rf "$BUILDER_PREPARED"
+}
+
+_dzslides() {
+  prepare_dzslides
+
+  local embbeded
+  local destination_dir=$PROJECT_DIR/$BUILD_DIR
+  mkdir -p "$destination_dir"
+  if [ "$1" == "--embbeded" ]
+  then
+    rm -rf "$destination_dir"/*
+    embbeded="-a data-uri -a linkcss!"
+  else
+    rsync -a --update --delete ~/.asciidoc/backends/dzslides/dzslides "$destination_dir"/
+  fi
+  asciidoc $embbeded index.asciidoc && \
+  mv index.html "$destination_dir"/
+  [ "$embbeded" ] && true || rsync -a --update --delete images "$destination_dir"/
+}
+
+_server() {
+  local port=3000
+  while [ "$1" ] && [[ $1 == --* ]]
+  do
+    case $1 in
+      --port) shift; port=$1
+      [[ $port =~ ^[0-9]+$ ]] || { echo "Porta inválida!"; exit 1; }
+      ;;
+    esac
+    shift
+  done
+
+  cd "$PROJECT_DIR/$BUILD_DIR" &>/dev/null
+  python -m SimpleHTTPServer $port
+  cd - &> /dev/null
 }
 
 #############
