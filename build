@@ -15,6 +15,7 @@ cd "$PROJECT_DIR"
 
 # Default values (configurable in $BUILDER.conf, for example)
 BUILD_DIR=${BUILD_DIR:-target}
+PUBLISHED_DIR=${PUBLISHED_DIR:-published}
 DEFAULT_OP=${DEFAULT_OP:-pdf}
 NEEDED_GEMS=${NEEDED_GEMS:-'asciidoctor tilt thread_safe slim'}
 BUILDER_PREPARED=${BUILDER_PREPARED:-"$BUILDER.prepared"}
@@ -219,6 +220,52 @@ _dzslides() {
   asciidoc $embbeded index.asciidoc && \
   mv index.html "$destination_dir"/
   [ "$embbeded" ] && true || rsync -a --update --delete images "$destination_dir"/
+}
+
+_create_gh_pages_branch() {
+  git checkout --orphan gh-pages
+  git rm -rf .
+  echo "Página gerada em `date +"%d/%m/%Y às %H:%M:%S"`" > index.html
+  git add index.html
+  git commit -m 'Commit inicial'
+  git checkout master
+  git push -u origin gh-pages
+  git submodule add -b gh-pages `git config --get remote.origin.url` "$PUBLISHED_DIR"
+  git add .
+  git commit -m 'Adicionada a branch gh-pages'
+  git push
+}
+
+_remove_gh_pages_branch() {
+  grep -q gh-pages <(git branch) && git branch -D gh-pages
+  git push origin --delete gh-pages
+  git submodule deinit -f "$PUBLISHED_DIR"
+  git rm -rf "$PUBLISHED_DIR"
+  git commit -am "Removida a branch gh-pages"
+  git push
+}
+
+_publish_on_gh_pages() {
+  [ -f "$PUBLISHED_DIR/.git" ] || git submodule update --init "$PUBLISHED_DIR"
+
+  _publish_with_rsync || return $?
+
+  local msg="Publicação em `date +"%d/%m/%Y às %H:%M:%S"`"
+  cd "$PUBLISHED_DIR"
+  git add .
+  git commit -m "$msg"
+  git push origin HEAD:gh-pages
+  cd ..
+  git add "`basename "$PUBLISHED_DIR"`"
+  git commit -m "$msg"
+  git push
+}
+
+_publish_with_rsync() {
+  [ -d "$PUBLISHED_DIR" ] || mkdir -p "$PUBLISHED_DIR"
+
+  _dzslides
+  rsync -av --update --delete --exclude '.git' "$BUILD_DIR"/dzslides/ "$PUBLISHED_DIR"/
 }
 
 _server() {
