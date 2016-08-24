@@ -246,16 +246,19 @@ _remove_gh_pages_branch() {
 }
 
 _publish_on_gh_pages() {
+  set -x
   [ -f "$PUBLISHED_DIR/.git" ] || git submodule update --init "$PUBLISHED_DIR"
 
   _publish_with_rsync || return $?
 
+  set +x
+  return
   local msg="Publicação em `date +"%d/%m/%Y às %H:%M:%S"`"
   cd "$PUBLISHED_DIR"
   git add .
   git commit -m "$msg"
   git push origin HEAD:gh-pages
-  cd ..
+  cd - &> /dev/null
   git add "`basename "$PUBLISHED_DIR"`"
   git commit -m "$msg"
   git push
@@ -264,8 +267,9 @@ _publish_on_gh_pages() {
 _publish_with_rsync() {
   [ -d "$PUBLISHED_DIR" ] || mkdir -p "$PUBLISHED_DIR"
 
-  _dzslides
-  rsync -av --update --delete --exclude '.git' "$BUILD_DIR"/dzslides/ "$PUBLISHED_DIR"/
+  _$DEFAULT_OP
+  rsync -av --update --delete --exclude .git "$BUILD_DIR"/ "$PUBLISHED_DIR"/
+  find "$PUBLISHED_DIR" -type d -name .git -delete
 }
 
 _server() {

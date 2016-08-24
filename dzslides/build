@@ -1,7 +1,8 @@
 #!/bin/bash
 set +x
 
+export DEFAULT_OP=dzslides
 export BASEDIR=`cd "$(dirname "$0")"; pwd`
-export BUILD_DIR=target/dzslides
+export BUILD_DIR=${BUILD_DIR:-target}/$DEFAULT_OP
 
-"`dirname "$BASEDIR"`"/build dzslides "$@"
+"`dirname "$BASEDIR"`"/build $DEFAULT_OP "$@"
