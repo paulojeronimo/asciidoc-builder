@@ -246,13 +246,10 @@ _remove_gh_pages_branch() {
 }
 
 _publish_on_gh_pages() {
-  set -x
   [ -f "$PUBLISHED_DIR/.git" ] || git submodule update --init "$PUBLISHED_DIR"
 
   _publish_with_rsync || return $?
 
-  set +x
-  return
   local msg="Publicação em `date +"%d/%m/%Y às %H:%M:%S"`"
   cd "$PUBLISHED_DIR"
   git add .
