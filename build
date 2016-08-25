@@ -215,7 +215,8 @@ _dzslides() {
     rm -rf "$destination_dir"/*
     embbeded="-a data-uri -a linkcss!"
   else
-    rsync -a --update --delete ~/.asciidoc/backends/dzslides/dzslides "$destination_dir"/
+    rsync -a --update --delete --exclude .git ~/.asciidoc/backends/dzslides/dzslides "$destination_dir"/
+    find "$destination_dir" -type d -name .git -delete
   fi
   asciidoc $embbeded index.asciidoc && \
   mv index.html "$destination_dir"/
@@ -265,8 +266,7 @@ _publish_with_rsync() {
   [ -d "$PUBLISHED_DIR" ] || mkdir -p "$PUBLISHED_DIR"
 
   _$DEFAULT_OP
-  rsync -av --update --delete --exclude .git "$BUILD_DIR"/ "$PUBLISHED_DIR"/
-  find "$PUBLISHED_DIR" -type d -name .git -delete
+  rsync -av --update --delete "$BUILD_DIR"/ "$PUBLISHED_DIR"/
 }
 
 _server() {
