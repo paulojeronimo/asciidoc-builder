@@ -99,7 +99,7 @@ prepare_dzslides() {
   local f=qrcode-filter-1.0.zip
   if ! [ -f $f ]
   then
-      wget -c http://asciidoc-qrencode-filter.googlecode.com/files/$f
+      wget -c https://storage.googleapis.com/google-code-archive-downloads/v2/code.google.com/asciidoc-qrencode-filter/$f
       asciidoc --filter install $f
   fi
   mkdir -p ~/.asciidoc/backends && cd $_
