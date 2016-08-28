@@ -19,6 +19,7 @@ PUBLISHED_DIR=${PUBLISHED_DIR:-published}
 DEFAULT_OP=${DEFAULT_OP:-pdf}
 NEEDED_GEMS=${NEEDED_GEMS:-'asciidoctor tilt thread_safe slim'}
 BUILDER_PREPARED=${BUILDER_PREPARED:-"$BUILDER.prepared"}
+SERVER_PORT=${SERVER_PORT:-8080}
 
 ####################
 # Auxiliar functions
@@ -270,7 +271,7 @@ _publish_with_rsync() {
 }
 
 _server() {
-  local port=3000
+  local port=${SERVER_PORT}
   while [ "$1" ] && [[ $1 == --* ]]
   do
     case $1 in
