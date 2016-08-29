@@ -88,7 +88,7 @@ _html() {
         local html=${adoc%.*}
         if [ $adoc -nt $html ]
         then
-            asciidoctor -T asciidoctor-reveal.js/templates/slim $adoc
+            asciidoctor -a revealjs -T asciidoctor-reveal.js/templates/slim $adoc
         fi
     done
 }
