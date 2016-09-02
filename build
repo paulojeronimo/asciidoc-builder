@@ -20,6 +20,8 @@ DEFAULT_OP=${DEFAULT_OP:-pdf}
 NEEDED_GEMS=${NEEDED_GEMS:-'asciidoctor tilt thread_safe slim'}
 BUILDER_PREPARED=${BUILDER_PREPARED:-"$BUILDER.prepared"}
 SERVER_PORT=${SERVER_PORT:-8080}
+DZSLIDES_BACKEND=${DZSLIDES_BACKEND:-git@github.com:paulojeronimo/asciidoc-dzslides-backend}
+DZSLIDES=${DZSLIDES:-git@github.com:paulojeronimo/dzslides}
 
 ####################
 # Auxiliar functions
@@ -97,11 +99,13 @@ prepare_dzslides() {
   which qrencode > /dev/null || install_qrencode
   pushd . &> /dev/null
   mkdir -p ~/.asciidoc && cd $_
-  local f=qrcode-filter-1.0.zip
+  local f=1.0.zip
   if ! [ -f $f ]
   then
-      wget -c https://storage.googleapis.com/google-code-archive-downloads/v2/code.google.com/asciidoc-qrencode-filter/$f
-      asciidoc --filter install $f
+      wget -c https://github.com/paulojeronimo/asciidoc-qrencode-filter/archive/$f
+      mkdir -p filters && cd $_
+      unzip ../$f
+      mv asciidoc-qrencode-filter-1.0 qrcode
   fi
   mkdir -p ~/.asciidoc/backends && cd $_
   if ! [ -d dzslides ]
