@@ -219,8 +219,11 @@ _dzslides() {
     rsync -a --update --delete --exclude .git ~/.asciidoc/backends/dzslides/dzslides "$destination_dir"/
     find "$destination_dir" -type d -name .git -delete
   fi
-  asciidoc $embbeded index.asciidoc && \
-  mv index.html "$destination_dir"/
+  if [ index.asciidoc -nt "$destination_dir"/index.html ]
+  then
+    asciidoc $embbeded index.asciidoc && \
+    mv index.html "$destination_dir"/
+  fi
   [ "$embbeded" ] && true || rsync -a --update --delete images "$destination_dir"/
 }
 
@@ -248,25 +251,24 @@ _remove_gh_pages_branch() {
 }
 
 _publish_on_gh_pages() {
-  [ -f "$PUBLISHED_DIR/.git" ] || git submodule update --init "$PUBLISHED_DIR"
+  local remote_repo=`git config --get remote.origin.url`
+  [ ".$remote_repo" = "." ] && { echo 'O repositório remoto ainda não está configurado!'; return; }
 
   _publish_with_rsync || return $?
 
   local msg="Publicação em `date +"%d/%m/%Y às %H:%M:%S"`"
   cd "$PUBLISHED_DIR"
+  git init
   git add .
   git commit -m "$msg"
-  git push origin HEAD:gh-pages
+  git push --force $remote_repo master:gh-pages
+  rm -rf .git
   cd - &> /dev/null
-  git add "`basename "$PUBLISHED_DIR"`"
-  git commit -m "$msg"
-  git push
 }
 
 _publish_with_rsync() {
   [ -d "$PUBLISHED_DIR" ] || mkdir -p "$PUBLISHED_DIR"
 
-  _$DEFAULT_OP
   rsync -av --update --delete "$BUILD_DIR"/ "$PUBLISHED_DIR"/
 }
 
