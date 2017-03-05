@@ -49,7 +49,7 @@ gem_install_asciidoctor_and_dependencies() {
                 echo "gem install $gem fails :("
                 case "$OSTYPE" in
                     darwin*)
-                        echo "trying to install with sudo ..."
+                        echo 'trying to install with sudo ...'
                         # http://stackoverflow.com/a/32892222
                         sudo gem install -n /usr/local/bin $gem
                         ;;
@@ -83,14 +83,14 @@ main() {
 install_asciidoc() {
   case $OSTYPE in
     darwin*) brew install asciidoc;;
-    *) echo 'Por favor, instale o asciidoc!'; exit;;
+    *) echo 'Please, install asciidoc!'; exit;;
   esac
 }
 
 install_qrencode() {
   case $OSTYPE in
     darwin*) brew install qrencode;;
-    *) echo 'Por favor, instale o qrencode!'; exit;;
+    *) echo 'Please, install asciidoc!'; exit;;
   esac
 }
 
@@ -128,7 +128,7 @@ _prepare() {
 
 # Build HTML. Verify if necessary gems and dependencies are installed. If not, install it.
 _html() {
-    echo "Generating HTML ..."
+    echo 'Generating HTML ...'
 
     [ -f "$BUILDER_PREPARED" ] || _prepare
 
@@ -148,7 +148,7 @@ _html() {
 
 # Build PDF. Verify if necessary gems and dependencies are installed. If not, install it.
 _pdf() {
-    echo "Generating PDF ..."
+    echo 'Generating PDF ...'
 
     local use_fopub=false
     while [ "$1" ]
@@ -156,7 +156,7 @@ _pdf() {
         case "$1" in
             --with-fopub)
                 use_fopub=true
-                echo "Using fopub!"
+                echo 'Using fopub!'
                 ;;
             *)
                 break
@@ -234,14 +234,14 @@ _dzslides() {
 _create_gh_pages_branch() {
   git checkout --orphan gh-pages
   git rm -rf .
-  echo "Página gerada em `date +"%d/%m/%Y às %H:%M:%S"`" > index.html
+  echo "Generated at `date`" > index.html
   git add index.html
-  git commit -m 'Commit inicial'
+  git commit -m 'First commit'
   git checkout master
   git push -u origin gh-pages
   git submodule add -b gh-pages `git config --get remote.origin.url` "$PUBLISHED_DIR"
   git add .
-  git commit -m 'Adicionada a branch gh-pages'
+  git commit -m 'gh-pages branch added'
   git push
 }
 
@@ -250,17 +250,17 @@ _remove_gh_pages_branch() {
   git push origin --delete gh-pages
   git submodule deinit -f "$PUBLISHED_DIR"
   git rm -rf "$PUBLISHED_DIR"
-  git commit -am "Removida a branch gh-pages"
+  git commit -am 'gh-pages branch removed'
   git push
 }
 
 _publish_on_gh_pages() {
   local remote_repo=`git config --get remote.origin.url`
-  [ ".$remote_repo" = "." ] && { echo 'O repositório remoto ainda não está configurado!'; return; }
+  [ ".$remote_repo" = "." ] && { echo 'The remote repository is not configured!'; return; }
 
   _publish_with_rsync || return $?
 
-  local msg="Publicação em `date +"%d/%m/%Y às %H:%M:%S"`"
+  local msg="Published at `date`"
   cd "$PUBLISHED_DIR"
   git init
   git add .
@@ -282,7 +282,7 @@ _server() {
   do
     case $1 in
       --port) shift; port=$1
-      [[ $port =~ ^[0-9]+$ ]] || { echo "Porta inválida!"; exit 1; }
+      [[ $port =~ ^[0-9]+$ ]] || { echo 'Invalid port!'; exit 1; }
       ;;
     esac
     shift
