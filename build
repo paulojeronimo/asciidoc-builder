@@ -263,6 +263,7 @@ _publish_on_gh_pages() {
   local msg="Published at `date`"
   cd "$PUBLISHED_DIR"
   git init
+  cp "$PROJECT_DIR"/.git/config .git/config
   git add .
   git commit -m "$msg"
   git push --force $remote_repo master:gh-pages
