@@ -20,8 +20,9 @@ DEFAULT_OP=${DEFAULT_OP:-pdf}
 NEEDED_GEMS=${NEEDED_GEMS:-'asciidoctor tilt thread_safe slim'}
 BUILDER_PREPARED=${BUILDER_PREPARED:-"$BUILDER.prepared"}
 SERVER_PORT=${SERVER_PORT:-8080}
-DZSLIDES_BACKEND=${DZSLIDES_BACKEND:-git@github.com:paulojeronimo/asciidoc-dzslides-backend}
-DZSLIDES=${DZSLIDES:-git@github.com:paulojeronimo/dzslides}
+DZSLIDES_BACKEND=${DZSLIDES_BACKEND:-https://github.com/paulojeronimo/asciidoc-dzslides-backend}
+DZSLIDES=${DZSLIDES:-https://github.com/paulojeronimo/dzslides}
+QRENCODE=${QRENCODE:-https://github.com/paulojeronimo/asciidoc-qrencode-filter}
 
 ####################
 # Auxiliar functions
@@ -80,29 +81,31 @@ main() {
     done
 }
 
-install_asciidoc() {
+install_tool() {
   case $OSTYPE in
-    darwin*) brew install asciidoc;;
-    *) echo 'Please, install asciidoc!'; exit;;
+    darwin*) brew install $1;;
+    linux-gnu)
+      yes | sudo pacman -S $1
+      ;;
+    *) echo "Please, install $1!"; exit;;
   esac
 }
 
-install_qrencode() {
-  case $OSTYPE in
-    darwin*) brew install qrencode;;
-    *) echo 'Please, install asciidoc!'; exit;;
-  esac
+check() {
+  for tool in "$@"
+  do
+    which $tool &> /dev/null || install_tool $tool
+  done
 }
 
 prepare_dzslides() {
-  which asciidoc > /dev/null || install_asciidoc
-  which qrencode > /dev/null || install_qrencode
+  check asciidoc wget unzip
   pushd . &> /dev/null
   mkdir -p ~/.asciidoc && cd $_
   local f=1.0.zip
   if ! [ -f $f ]
   then
-      wget -c https://github.com/paulojeronimo/asciidoc-qrencode-filter/archive/$f
+      wget -c $QRENCODE/archive/$f
       mkdir -p filters && cd $_
       unzip ../$f
       mv asciidoc-qrencode-filter-1.0 qrcode
@@ -228,7 +231,9 @@ _dzslides() {
     asciidoc $embbeded index.asciidoc && \
     mv index.html "$destination_dir"/
   fi
-  [ "$embbeded" ] && true || rsync -a --update --delete images "$destination_dir"/
+  [ "$embbeded" ] && true || {
+    [ -d images ] && rsync -a --update --delete images "$destination_dir"/ || true
+  }
 }
 
 _create_gh_pages_branch() {
