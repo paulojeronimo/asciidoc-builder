@@ -99,7 +99,7 @@ check() {
 }
 
 prepare_dzslides() {
-  check asciidoc wget unzip
+  check asciidoc qrencode wget unzip
   pushd . &> /dev/null
   mkdir -p ~/.asciidoc && cd $_
   local f=1.0.zip
